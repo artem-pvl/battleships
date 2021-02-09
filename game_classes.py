@@ -5,10 +5,14 @@ class BoardOutException(Exception):
     pass
 
 
+class ShipLivesException(Exception):
+    pass
+
+
 class Dot:
     def __init__(self, x, y):
-        self.x_coord = x
-        self.y_coord = y
+        self.x_coord = self.__test_value(x)
+        self.y_coord = self.__test_value(y)
 
     @property
     def x(self):
@@ -34,7 +38,7 @@ class Dot:
             else:
                 raise BoardOutException()
         else:
-            raise TypeError()
+            raise TypeError("Coordinates must be an integer")
 
     def __eq__(self, other):
         if isinstance(other, Dot):
@@ -46,14 +50,35 @@ class Dot:
 
 
 class Ship:
-    def __init__(self):
-        self.length = 0
-        self.start_point = Dot(0, 0)
-        self.orientation = True
-        self.lives = 0
+    def __init__(self, length, start_point, orientation):
+        self._length = length
+        self.start_point = start_point
+        self.orientation = orientation
+        self._lives = length
+
+    @property
+    def length(self):
+        return self._length
+
+    @property
+    def lives(self):
+        return self._lives
+
+    @lives.setter
+    def lives(self, value):
+        if isinstance(value, int):
+            raise TypeError("Ship lives must be an integer")
+
+        if 0 < value <= self._length:
+            self._lives = value
+        else:
+            raise ShipLivesException("Ship lives must be in the range from 0 to ship length")
 
     def dots(self):
-        pass
+        if self.orientation:
+            return [Dot(_, self.start_point.y) for _ in range(self.start_point.x, self.start_point.x + self._length)]
+        else:
+            return [Dot(self.start_point.x, _) for _ in range(self.start_point.y, self.start_point.y + self._length)]
 
 
 class Board:
