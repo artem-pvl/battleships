@@ -51,48 +51,66 @@ class Dot:
 
 class Ship:
     def __init__(self, length, start_point, orientation):
-        self._length = length
+        self.length = length
         self.start_point = start_point
+#       orientation: True - horizontal, False - vertical
         self.orientation = orientation
-        self._lives = length
+        self.lives = length
 
     @property
-    def length(self):
-        return self._length
+    def ship_length(self):
+        return self.length
 
     @property
-    def lives(self):
-        return self._lives
+    def ship_lives(self):
+        return self.lives
 
-    @lives.setter
-    def lives(self, value):
+    @ship_lives.setter
+    def ship_lives(self, value):
         if isinstance(value, int):
             raise TypeError("Ship lives must be an integer")
 
-        if 0 < value <= self._length:
-            self._lives = value
+        if 0 < value <= self.length:
+            self.lives = value
         else:
             raise ShipLivesException("Ship lives must be in the range from 0 to ship length")
 
     def dots(self):
         if self.orientation:
-            return [Dot(_, self.start_point.y) for _ in range(self.start_point.x, self.start_point.x + self._length)]
+            return [Dot(i, self.start_point.y) for i in range(self.start_point.x, self.start_point.x + self.length)]
         else:
-            return [Dot(self.start_point.x, _) for _ in range(self.start_point.y, self.start_point.y + self._length)]
+            return [Dot(self.start_point.x, i) for i in range(self.start_point.y, self.start_point.y + self.length)]
+
+    def contour(self):
+        contour = []
+        for i in range(self.start_point.x - 1,
+                       self.start_point.x + self.length + 1 if self.orientation else self.start_point.x + 1):
+            for j in range(self.start_point.y - 1,
+                           self.start_point.x + 1 if self.orientation else self.start_point.y + self.length + 1):
+                if (0 <= i <= BOARD_SIZE) and (0 <= j <= BOARD_SIZE):
+                    dot = Dot(i, j)
+                    if dot not in self.dots():
+                        contour.append(Dot(i, j))
+        return contour
 
 
 class Board:
     def __init__(self):
-        self.board = [["" * 6] * 6]
-        self.ships = [[Ship()] * 9]
+        self.board = [[" " * BOARD_SIZE] * BOARD_SIZE]
+#       board - statements:
+#       "█" - ship
+#       "◌" - miss
+#       "╳" - hit
+#       " " - blank
+        self.ships = []
         self.hid = True
         self.live_ships = 9
 
-    def add_ship(self):
-        pass
-
-    def contour(self):
-        pass
+    def add_ship(self, ship):
+        if isinstance(ship, Ship):
+            self.ships.append(ship)
+        else:
+            raise TypeError("Ship to add must be the Ship class")
 
     def print_board(self):
         pass
