@@ -9,6 +9,10 @@ class ShipLivesException(Exception):
     pass
 
 
+class ShipWrongPosition(Exception):
+    pass
+
+
 class Dot:
     def __init__(self, x, y):
         self.x_coord = self.__test_value(x)
@@ -33,10 +37,7 @@ class Dot:
     @staticmethod
     def __test_value(value):
         if isinstance(value, int):
-            if 0 <= value < BOARD_SIZE:
-                return value
-            else:
-                raise BoardOutException()
+            return value
         else:
             raise TypeError("Coordinates must be an integer")
 
@@ -81,22 +82,19 @@ class Ship:
         else:
             return [Dot(self.start_point.x, i) for i in range(self.start_point.y, self.start_point.y + self.length)]
 
-    def contour(self):
-        contour = []
+    def area(self):
+        area = []
         for i in range(self.start_point.x - 1,
                        self.start_point.x + self.length + 1 if self.orientation else self.start_point.x + 1):
             for j in range(self.start_point.y - 1,
                            self.start_point.x + 1 if self.orientation else self.start_point.y + self.length + 1):
-                if (0 <= i <= BOARD_SIZE) and (0 <= j <= BOARD_SIZE):
-                    dot = Dot(i, j)
-                    if dot not in self.dots():
-                        contour.append(Dot(i, j))
-        return contour
+                area.append(Dot(i, j))
+        return area
 
 
 class Board:
     def __init__(self):
-        self.board = [[" " * BOARD_SIZE] * BOARD_SIZE]
+        self.board = [[" "] * BOARD_SIZE for _ in range(BOARD_SIZE)]
 #       board - statements:
 #       "█" - ship
 #       "◌" - miss
@@ -104,22 +102,68 @@ class Board:
 #       " " - blank
         self.ships = []
         self.hid = True
-        self.live_ships = 9
+        self.alive_ships = 0
+        self.__ship_symbol = "█"
+        self.__miss_symbol = "●"
+        self.__hit_symbol = "╳"
+        self.__blank_symbol = " "
+
+    @property
+    def hid_ships(self):
+        return self.hid
+
+    @hid_ships.setter
+    def hid_ships(self, value):
+        self.hid = value
 
     def add_ship(self, ship):
         if isinstance(ship, Ship):
-            self.ships.append(ship)
+            if all(map(self.out, ship.dots())):
+                for current_ship in self.ships:
+                    for ship_dot in ship.dots():
+                        if ship_dot in current_ship.area():
+                            raise ShipWrongPosition("Ship intersection detected!")
+                self.ships.append(ship)
+                self.alive_ships += 1
+            else:
+                raise BoardOutException("Ship not on the board")
         else:
-            raise TypeError("Ship to add must be the Ship class")
+            raise TypeError("Ship to add must be the Ship class object")
 
     def print_board(self):
-        pass
+        rows_index = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+        print(f"       {'  '.join([str(i) for i in range(1, len(self.board[0])+1)])}\n")
 
-    def out(self):
-        pass
+        temp_board = self.board.copy()
+        if not self.hid:
+            for ship in self.ships:
+                for dot in ship.dots():
+                    if temp_board[dot.x][dot.y] != self.__hit_symbol:
+                        temp_board[dot.x][dot.y] = self.__ship_symbol
+        for index, row in zip(rows_index, temp_board):
+            print(f"   {index}   \033[34m\033[1m{'  '.join(row)}\033[37m\033[0m")
 
-    def shot(self):
-        pass
+    def out(self, dot):
+        if isinstance(dot, Dot):
+            if (0 <= dot.x <= len(self.board[0])) and (0 <= dot.y <= len(self.board)):
+                return True
+            return False
+        else:
+            raise TypeError("Dot must be Dot class object")
+
+    def shot(self, dot):
+        if isinstance(dot, Dot):
+            if self.out(dot):
+                for ship in self.ships:
+                    if dot in ship.dots():
+                        self.board[dot.x][dot.y] = self.__hit_symbol
+                        return True
+                self.board[dot.x][dot.y] = self.__miss_symbol
+                return True
+            else:
+                return False
+        else:
+            raise TypeError("Dot must be Dot class object")
 
 
 class Player:
