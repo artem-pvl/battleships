@@ -1,4 +1,12 @@
 BOARD_SIZE = 6
+CHARS = ['a', 'b', 'c', 'd',
+         'e', 'f', 'g', 'h',
+         'i', 'j', 'k', 'l',
+         'm', 'n', 'o', 'p',
+         'q', 'r', 's', 't',
+         'u', 'v', 'w', 'x',
+         'y', 'z']
+CHAR_SCALE = [i for i in CHARS[:BOARD_SIZE]]
 
 
 class BoardOutException(Exception):
@@ -145,6 +153,21 @@ class Board:
         for index, row in zip(rows_index, temp_board):
             print(f"   {index}   \033[34m\033[1m{'  '.join(row)}\033[37m\033[0m")
 
+    def __getitem__(self, item):
+        if all((isinstance(item, tuple), isinstance(item[0], int), isinstance(item[1], int))) and (len(item) == 2):
+            if self.out(Dot(*item)):
+                if self.hid or (self.board[item[0]][item[1]] in (self.__hit_symbol, self.__miss_symbol)):
+                    return self.board[item[0]][item[1]]
+                else:
+                    for ship in self.ships:
+                        if Dot(*item) in ship.dots():
+                            return self.__ship_symbol
+                    return self.__blank_symbol
+            else:
+                raise KeyError
+        else:
+            raise TypeError("Item must be (x,y) tuple where x and y is integer")
+
     def out(self, dot):
         if isinstance(dot, Dot):
             if (0 <= dot.x <= len(self.board[0])) and (0 <= dot.y <= len(self.board)):
@@ -181,6 +204,9 @@ class Player:
         self.__current_player = 0
         self.__turn_iter = self.__turn(1, 2)
 
+    def get_current_player(self):
+        return self.__current_player
+
     @classmethod
     def __turn(cls, a, b):
         while True:
@@ -191,8 +217,8 @@ class Player:
         return Dot(0, 0)
 
     def move(self):
-        current_player = next(self.__turn_iter)
-        if current_player == 1:
+        self.__current_player = next(self.__turn_iter)
+        if self.__current_player == 1:
             current_board = self.board_player_2
         else:
             current_board = self.board_player_1
