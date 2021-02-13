@@ -1,12 +1,4 @@
 BOARD_SIZE = 6
-CHARS = ['a', 'b', 'c', 'd',
-         'e', 'f', 'g', 'h',
-         'i', 'j', 'k', 'l',
-         'm', 'n', 'o', 'p',
-         'q', 'r', 's', 't',
-         'u', 'v', 'w', 'x',
-         'y', 'z']
-CHAR_SCALE = [i for i in CHARS[:BOARD_SIZE]]
 
 
 class BoardOutException(Exception):
@@ -120,6 +112,10 @@ class Board:
         self.alive_ships = 0
 
     @property
+    def board_size(self):
+        return len(self.board)
+
+    @property
     def hid_ships(self):
         return self.hid
 
@@ -204,6 +200,14 @@ class Board:
 
 
 class Player:
+    CHARS = ['a', 'b', 'c', 'd',
+             'e', 'f', 'g', 'h',
+             'i', 'j', 'k', 'l',
+             'm', 'n', 'o', 'p',
+             'q', 'r', 's', 't',
+             'u', 'v', 'w', 'x',
+             'y', 'z']
+
     def __init__(self, board_size=BOARD_SIZE):
         self.board_player_1 = Board(board_size)
         self.board_player_2 = Board(board_size)
@@ -239,6 +243,29 @@ class Player:
                 self.ask("The shoot misses the board!")
             except DotIsOccupiedException:
                 self.ask("The shot already made in this dot!")
+
+    def print_board(self, player):
+        if not (isinstance(player, int) and (player in (1, 2))):
+            raise TypeError("Player most be 1 or 2")
+        if player == 1:
+            board_1 = self.board_player_1
+            board_1.hid = False
+            board_2 = self.board_player_2
+            board_2.hid = True
+        else:
+            board_2 = self.board_player_1
+            board_2.hid = False
+            board_1 = self.board_player_2
+            board_1.hid = True
+
+        print()
+        print('       '+'Моё поле'.center((board_1.board_size-1)*2+board_1.board_size, ' ') +
+              '       '+'Поле противника'.center((board_1.board_size-1)*2+board_1.board_size, ' '))
+        print('       '+'  '.join(str(i) for i in range(1, board_1.board_size+1)) +
+              '       '+'  '.join(str(i) for i in range(1, board_1.board_size+1)))
+        for y in range(board_1.board_size):
+            print('      '+self.CHARS[y]+'  '.join(board_1[x, y] for x in range(board_1.board_size))+'      ' +
+                  self.CHARS[y]+'  '.join(board_1[x, y] for x in range(board_2.board_size)))
 
 
 class Ai(Player):
