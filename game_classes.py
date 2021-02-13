@@ -93,20 +93,15 @@ class Ship:
 
 
 class Board:
-    def __init__(self):
-        self.board = [[" "] * BOARD_SIZE for _ in range(BOARD_SIZE)]
-#       board - statements:
-#       "█" - ship
-#       "◌" - miss
-#       "╳" - hit
-#       " " - blank
-        self.ships = []
-        self.hid = True
-        self.alive_ships = 0
+    def __init__(self, board_size=BOARD_SIZE):
         self.__ship_symbol = "█"
         self.__miss_symbol = "●"
         self.__hit_symbol = "╳"
         self.__blank_symbol = " "
+        self.board = [[self.__blank_symbol] * board_size for _ in range(board_size)]
+        self.ships = []
+        self.hid = True
+        self.alive_ships = 0
 
     @property
     def hid_ships(self):
@@ -115,6 +110,9 @@ class Board:
     @hid_ships.setter
     def hid_ships(self, value):
         self.hid = value
+
+    def get_alive_ships(self):
+        return self.alive_ships
 
     def add_ship(self, ship):
         if isinstance(ship, Ship):
@@ -157,6 +155,9 @@ class Board:
                 for ship in self.ships:
                     if dot in ship.dots():
                         self.board[dot.x][dot.y] = self.__hit_symbol
+                        ship.lives -= 1
+                        if ship.lives == 0:
+                            self.alive_ships -= 1
                         return True
                 self.board[dot.x][dot.y] = self.__miss_symbol
                 return True
