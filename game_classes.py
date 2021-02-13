@@ -5,6 +5,10 @@ class BoardOutException(Exception):
     pass
 
 
+class DotIsOccupiedException(Exception):
+    pass
+
+
 class ShipLivesException(Exception):
     pass
 
@@ -158,30 +162,56 @@ class Board:
                         ship.lives -= 1
                         if ship.lives == 0:
                             self.alive_ships -= 1
-                        return True
+                            return 'kill'
+                        return 'hit'
+                if self.board[dot.x][dot.y] != self.__blank_symbol:
+                    raise DotIsOccupiedException("Shoot was there!")
                 self.board[dot.x][dot.y] = self.__miss_symbol
-                return True
+                return 'miss'
             else:
-                return False
+                raise BoardOutException("Shoot is not on board")
         else:
             raise TypeError("Dot must be Dot class object")
 
 
 class Player:
-    def __init__(self):
-        self.board = Board()
-        self.enemy_board = Board()
+    def __init__(self, board_size = BOARD_SIZE):
+        self.board_player_1 = Board(board_size)
+        self.board_player_2 = Board(board_size)
+        self.__current_player = 0
+        self.__turn_iter = self.__turn(1, 2)
 
-    def ask(self):
-        pass
+    @classmethod
+    def __turn(cls, a, b):
+        while True:
+            yield a
+            yield b
+
+    def ask(self, reason=""):
+        return Dot(0, 0)
 
     def move(self):
-        pass
+        current_player = next(self.__turn_iter)
+        if current_player == 1:
+            current_board = self.board_player_2
+        else:
+            current_board = self.board_player_1
+
+        try_again = True
+        while try_again:
+            try:
+                shoot_result = current_board.shot(self.ask())
+                if shoot_result == "miss":
+                    try_again = False
+            except BoardOutException:
+                self.ask("The shoot misses the board!")
+            except DotIsOccupiedException:
+                self.ask("The shot already made in this dot!")
 
 
 class Ai(Player):
-    def __init__(self):
-        Player.__init__(self)
+    def __init__(self, current_player):
+        Player.__init__(self, current_player)
         pass
 
     def ask(self):
@@ -189,8 +219,8 @@ class Ai(Player):
 
 
 class User(Player):
-    def __init__(self):
-        Player.__init__(self)
+    def __init__(self, current_player):
+        Player.__init__(self, current_player)
         pass
 
     def ask(self):
