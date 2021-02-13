@@ -175,7 +175,7 @@ class Board:
 
 
 class Player:
-    def __init__(self, board_size = BOARD_SIZE):
+    def __init__(self, board_size=BOARD_SIZE):
         self.board_player_1 = Board(board_size)
         self.board_player_2 = Board(board_size)
         self.__current_player = 0
@@ -210,20 +210,20 @@ class Player:
 
 
 class Ai(Player):
-    def __init__(self, current_player):
-        Player.__init__(self, current_player)
+    def __init__(self):
+        Player.__init__(self)
         pass
 
-    def ask(self):
+    def ask(self, reason=""):
         pass
 
 
 class User(Player):
-    def __init__(self, current_player):
-        Player.__init__(self, current_player)
+    def __init__(self):
+        Player.__init__(self)
         pass
 
-    def ask(self):
+    def ask(self, reason=""):
         pass
 
 
