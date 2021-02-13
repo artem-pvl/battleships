@@ -154,19 +154,21 @@ class Board:
             print(f"   {index}   \033[34m\033[1m{'  '.join(row)}\033[37m\033[0m")
 
     def __getitem__(self, item):
-        if all((isinstance(item, tuple), isinstance(item[0], int), isinstance(item[1], int))) and (len(item) == 2):
-            if self.out(Dot(*item)):
-                if self.hid or (self.board[item[0]][item[1]] in (self.__hit_symbol, self.__miss_symbol)):
-                    return self.board[item[0]][item[1]]
-                else:
-                    for ship in self.ships:
-                        if Dot(*item) in ship.dots():
-                            return self.__ship_symbol
-                    return self.__blank_symbol
+        if not isinstance(item, Dot):
+            if all((isinstance(item, tuple), isinstance(item[0], int), isinstance(item[1], int))) and (len(item) == 2):
+                item = Dot(*item)
             else:
-                raise KeyError
+                raise TypeError("Item must be (x,y) tuple where x and y is integer or Dot class")
+        if self.out(item):
+            if self.hid or (self.board[item.x][item.y] in (self.__hit_symbol, self.__miss_symbol)):
+                return self.board[item.x][item.y]
+            else:
+                for ship in self.ships:
+                    if item in ship.dots():
+                        return self.__ship_symbol
+                return self.__blank_symbol
         else:
-            raise TypeError("Item must be (x,y) tuple where x and y is integer")
+            raise KeyError
 
     def out(self, dot):
         if isinstance(dot, Dot):
