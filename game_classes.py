@@ -10,19 +10,23 @@ CHAR_SCALE = [i for i in CHARS[:BOARD_SIZE]]
 
 
 class BoardOutException(Exception):
-    pass
+    def __init__(self, args="The object misses the board!"):
+        Exception.__init__(self, args)
 
 
 class DotIsOccupiedException(Exception):
-    pass
+    def __init__(self, args="The shot already made in this dot!"):
+        Exception.__init__(self, args)
 
 
 class ShipLivesException(Exception):
-    pass
+    def __init__(self, args="Ship lives must be in the range from 0 to ship length"):
+        Exception.__init__(self, args)
 
 
 class ShipWrongPosition(Exception):
-    pass
+    def __init__(self, args="Ship intersection detected!"):
+        Exception.__init__(self, args)
 
 
 class Dot:
@@ -86,7 +90,7 @@ class Ship:
         if 0 < value <= self.length:
             self.lives = value
         else:
-            raise ShipLivesException("Ship lives must be in the range from 0 to ship length")
+            raise ShipLivesException
 
     def dots(self):
         if self.orientation:
@@ -132,11 +136,11 @@ class Board:
                 for current_ship in self.ships:
                     for ship_dot in ship.dots():
                         if ship_dot in current_ship.area():
-                            raise ShipWrongPosition("Ship intersection detected!")
+                            raise ShipWrongPosition
                 self.ships.append(ship)
                 self.alive_ships += 1
             else:
-                raise BoardOutException("Ship not on the board")
+                raise BoardOutException
         else:
             raise TypeError("Ship to add must be the Ship class object")
 
@@ -190,11 +194,11 @@ class Board:
                             return 'kill'
                         return 'hit'
                 if self.board[dot.x][dot.y] != self.__blank_symbol:
-                    raise DotIsOccupiedException("Shoot was there!")
+                    raise DotIsOccupiedException
                 self.board[dot.x][dot.y] = self.__miss_symbol
                 return 'miss'
             else:
-                raise BoardOutException("Shoot is not on board")
+                raise BoardOutException
         else:
             raise TypeError("Dot must be Dot class object")
 
