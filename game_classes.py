@@ -1,3 +1,5 @@
+from random import randint
+
 BOARD_SIZE = 6
 
 
@@ -102,10 +104,13 @@ class Ship:
 
 class Board:
     def __init__(self, board_size=BOARD_SIZE):
-        self.__ship_symbol = "█"
-        self.__miss_symbol = "●"
-        self.__hit_symbol = "╳"
-        self.__blank_symbol = " "
+        self.__ship_symbol = "\033[37m█\033[0m"
+        self.__miss_symbol = "\033[34m●\033[0m"
+        self.__hit_symbol = "\033[33m\033[1m╳\033[0m"
+        self.__kill_symbol = "\033[41m\033[30m\033[1m╳\033[0m"
+        self.__blank_symbol = " \033[0m"
+        self.__last_turn_symbol = "\033[7m"
+        self.__last_turn = None
         self.board = [[self.__blank_symbol] * board_size for _ in range(board_size)]
         self.ships = []
         self.hid = True
@@ -161,6 +166,8 @@ class Board:
                 raise TypeError("Item must be (x,y) tuple where x and y is integer or Dot class")
         if self.out(item):
             if self.hid or (self.board[item.x][item.y] in (self.__hit_symbol, self.__miss_symbol)):
+                if item == self.__last_turn:
+                    return self.__last_turn_symbol+self.board[item.x][item.y]
                 return self.board[item.x][item.y]
             else:
                 for ship in self.ships:
@@ -172,7 +179,7 @@ class Board:
 
     def out(self, dot):
         if isinstance(dot, Dot):
-            if (0 <= dot.x <= len(self.board[0])) and (0 <= dot.y <= len(self.board)):
+            if (0 <= dot.x < len(self.board[0])) and (0 <= dot.y < len(self.board)):
                 return True
             return False
         else:
@@ -187,11 +194,16 @@ class Board:
                         ship.lives -= 1
                         if ship.lives == 0:
                             self.alive_ships -= 1
+                            self.__last_turn = dot
+                            for killed_dot in ship.dots():
+                                self.board[killed_dot.x][killed_dot.y] = self.__kill_symbol
                             return 'kill'
+                        self.__last_turn = dot
                         return 'hit'
                 if self.board[dot.x][dot.y] != self.__blank_symbol:
                     raise DotIsOccupiedException
                 self.board[dot.x][dot.y] = self.__miss_symbol
+                self.__last_turn = dot
                 return 'miss'
             else:
                 raise BoardOutException
@@ -211,8 +223,8 @@ class Player:
     def __init__(self, board_size=BOARD_SIZE):
         self.board_player_1 = Board(board_size)
         self.board_player_2 = Board(board_size)
-        self.__current_player = 0
         self.__turn_iter = self.__turn(1, 2)
+        self.__current_player = next(self.__turn_iter)
 
     def get_current_player(self):
         return self.__current_player
@@ -242,7 +254,7 @@ class Player:
             except BoardOutException:
                 self.ask("The shoot misses the board!")
             except DotIsOccupiedException:
-                self.ask("The shot already made in this dot!")
+                self.ask("The shot already made in this point!")
 
     def print_board(self, player):
         if not (isinstance(player, int) and (player in (1, 2))):
@@ -259,22 +271,34 @@ class Player:
             board_1.hid = True
 
         print()
-        print('       '+'Моё поле'.center((board_1.board_size-1)*2+board_1.board_size, ' ') +
-              '       '+'Поле противника'.center((board_1.board_size-1)*2+board_1.board_size, ' '))
-        print('       '+'  '.join(str(i) for i in range(1, board_1.board_size+1)) +
-              '       '+'  '.join(str(i) for i in range(1, board_1.board_size+1)))
-        for y in range(board_1.board_size):
-            print('      '+self.CHARS[y]+'  '.join(board_1[x, y] for x in range(board_1.board_size))+'      ' +
-                  self.CHARS[y]+'  '.join(board_1[x, y] for x in range(board_2.board_size)))
+        print('        '+'Моё поле'.center((board_1.board_size-1)*2+board_1.board_size, ' ') +
+              '        '+'Поле противника'.center((board_2.board_size-1)*2+board_2.board_size, ' '))
+        print('        '+'  '.join(str(i) for i in range(1, board_1.board_size+1)) +
+              '        '+'  '.join(str(i) for i in range(1, board_2.board_size+1)))
+        for x in range(board_1.board_size):
+            print('      '+self.CHARS[x]+' '+'  '.join(board_1[x, y] for y in range(board_1.board_size))+'      ' +
+                  self.CHARS[x]+' '+'  '.join(board_2[x, y] for y in range(board_2.board_size)))
 
 
 class Ai(Player):
     def __init__(self):
         Player.__init__(self)
-        pass
 
     def ask(self, reason=""):
-        pass
+        if self.get_current_player() == 1:
+            dot = [None, None]
+            if reason:
+                print(reason)
+            turn = input("Ваш ход: ").lower()
+            while None in dot:
+                if len(turn) == 2:
+                    dot[0] = self.CHARS.index(list(turn)[0]) if list(turn)[0] in self.CHARS else None
+                    dot[1] = int(list(turn)[1])-1 if turn[1].isdigit() else None
+                if None in dot:
+                    turn = input("Введите ход в формате RC, где: R - буква строки, C - номер колонки: ").lower()
+            return Dot(*dot)
+        if self.get_current_player() == 2:
+            return Dot(randint(0, self.board_player_2.board_size-1), randint(0, self.board_player_2.board_size-1))
 
 
 class User(Player):
