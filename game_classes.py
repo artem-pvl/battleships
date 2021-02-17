@@ -109,19 +109,20 @@ class Ship:
 
     def dots(self):
         if self.__orientation:
-            return [Dot(i, self.__start_point.y) for i in
-                    range(self.__start_point.x, self.__start_point.x + self.__length)]
-        else:
             return [Dot(self.__start_point.x, i) for i in
                     range(self.__start_point.y, self.__start_point.y + self.__length)]
+        else:
+            return [Dot(i, self.__start_point.y) for i in
+                    range(self.__start_point.x, self.__start_point.x + self.__length)]
 
     def area(self):
         area = []
         for i in range(self.__start_point.x - 1,
-                       self.__start_point.x + self.__length + 1 if self.__orientation else self.__start_point.x + 1):
+                       self.__start_point.x + 2 if self.__orientation
+                       else self.__start_point.x + self.__length + 1):
             for j in range(self.__start_point.y - 1,
-                           self.__start_point.x + 1 if self.__orientation
-                           else self.__start_point.y + self.__length + 1):
+                           self.__start_point.y + self.__length + 1 if self.__orientation
+                           else self.__start_point.y + 2):
                 area.append(Dot(i, j))
         return area
 
@@ -230,6 +231,9 @@ class Board:
             if not any(map(self.out, ship.dots())):
                 for current_ship in self.ships:
                     for ship_dot in ship.dots():
+                        csa = current_ship.area()
+                        print([(i.x, i.y) for i in csa])
+                        print(ship_dot.x, ship_dot.y)
                         if ship_dot in current_ship.area():
                             raise ShipWrongPosition
                 self.ships.append(ship)
@@ -383,12 +387,16 @@ class Player:
         pass
 
     def save_move(self, dot, status):
+        if status == "loose":
+            status = "kill"
         self.enemy_board.save_result(dot, status)
 
     def move(self, dot):
         if isinstance(dot, Dot):
             try:
                 shoot_result = self.player_board.shot(dot)
+                if self.player_board.get_alive_ships_count() == 0:
+                    return "loose"
             except BoardOutException:
                 shoot_result = "board miss"
             except DotIsOccupiedException:
@@ -408,6 +416,9 @@ class Player:
                   '  '.join(self.player_board[x, y] for y in range(self.player_board.board_size)) +
                   '      '+self.CHARS[x]+' ' +
                   '  '.join(self.enemy_board[x, y] for y in range(self.enemy_board.board_size)))
+
+    def add_ships(self, ships):
+        pass
 
 
 class Ai(Player):
@@ -432,18 +443,44 @@ class User(Player):
         Player.__init__(self, board_size)
         pass
 
-    def ask(self, reason=""):
+    def __check_input(self, turn):
         dot = [None, None]
-        if reason:
-            print(reason)
-        turn = input("Ваш ход: ").lower()
         while None in dot:
             if len(turn) == 2:
                 dot[0] = self.CHARS.index(list(turn)[0]) if list(turn)[0] in self.CHARS else None
                 dot[1] = int(list(turn)[1]) - 1 if turn[1].isdigit() else None
             if None in dot:
-                turn = input("Введите ход в формате RC, где: R - буква строки, C - номер колонки: ").lower()
+                turn = input("Введите точку в формате RC, где: R - буква строки, C - номер колонки: ").lower()
         return Dot(*dot)
+
+    def ask(self, reason=""):
+        if reason:
+            print(reason)
+        turn = input("Ваш ход: ").lower()
+        return self.__check_input(turn)
+
+    def add_ships(self, ships):
+        for ship in ships:
+            next_ship = False
+            self.print_board()
+            print()
+            while not next_ship:
+                text = input(f"Введите начальную точку корабля размером {ship.length} палубы: ")
+                start_dot = self.__check_input(text)
+                ship.start_point = start_dot
+                text = ""
+                while text not in ("h", "v", "г", "в"):
+                    text = input(f"Введите ориентацию корабля (h или г - горизонтально, v или в - вертикально): ")
+                ship.orientation = True if text in ("h", "г") else False
+                try:
+                    self.player_board.add_ship(ship)
+                except BoardOutException:
+                    print("Корабль выходит за пределы игрового поля, попробуйте ввести расположение ещё раз!")
+                except ShipWrongPosition:
+                    print("Корабли столкнулись, попробуйте ввести расположение ещё раз!")
+                else:
+                    next_ship = True
+                    self.print_board()
 
 
 class Game:
