@@ -65,42 +65,63 @@ class Dot:
 
 class Ship:
     def __init__(self, length, start_point, orientation):
-        self.length = length
-        self.start_point = start_point
+        self.__length = length
+        self.__start_point = start_point
 #       orientation: True - horizontal, False - vertical
-        self.orientation = orientation
-        self.lives = length
+        self.__orientation = orientation
+        self.__lives = length
 
     @property
-    def ship_length(self):
-        return self.length
+    def length(self):
+        return self.__length
+
+    @length.setter
+    def length(self, ship_length):
+        self.__length = ship_length
 
     @property
-    def ship_lives(self):
-        return self.lives
+    def start_point(self):
+        return self.__start_point
 
-    @ship_lives.setter
-    def ship_lives(self, value):
-        if isinstance(value, int):
-            raise TypeError("Ship lives must be an integer")
+    @start_point.setter
+    def start_point(self, dot):
+        self.__start_point = dot
 
-        if 0 < value <= self.length:
-            self.lives = value
+    @property
+    def orientation(self):
+        return self.__orientation
+
+    @orientation.setter
+    def orientation(self, ship_orientation):
+        self.__orientation = ship_orientation
+
+    @property
+    def lives(self):
+        return self.__lives
+
+    @lives.setter
+    def lives(self, ship_lives):
+        if 0 <= ship_lives <= self.__length:
+            self.__lives = ship_lives
         else:
+            print(f"shl = {ship_lives}")
             raise ShipLivesException
 
     def dots(self):
-        if self.orientation:
-            return [Dot(i, self.start_point.y) for i in range(self.start_point.x, self.start_point.x + self.length)]
+        if self.__orientation:
+            return [Dot(i, self.__start_point.y) for i in
+                    range(self.__start_point.x, self.__start_point.x + self.__length)]
         else:
-            return [Dot(self.start_point.x, i) for i in range(self.start_point.y, self.start_point.y + self.length)]
+            return [Dot(self.__start_point.x, i) for i in
+                    range(self.__start_point.y, self.__start_point.y + self.__length)]
 
     def area(self):
         area = []
-        for i in range(self.start_point.x - 1,
-                       self.start_point.x + self.length + 1 if self.orientation else self.start_point.x + 1):
-            for j in range(self.start_point.y - 1,
-                           self.start_point.x + 1 if self.orientation else self.start_point.y + self.length + 1):
+        for i in range(self.__start_point.x - 1,
+                       self.__start_point.x + self.__length + 1 if self.__orientation else self.__start_point.x + 1):
+            for j in range(self.__start_point.y - 1,
+                           self.__start_point.x + 1 if self.__orientation
+                           else self.__start_point.y + self.__length + 1):
                 area.append(Dot(i, j))
         return area
 
@@ -191,6 +212,43 @@ class Board:
         else:
             raise TypeError("Ship to add must be the Ship class object")
 
+    def append_ship(self, ship_to_append):
+        if isinstance(ship_to_append, Ship):
+            for ship in self.ships:
+                if ship_to_append.start_point.x == ship.start_point.x:
+                    if ship_to_append.start_point.y+1 == ship.start_point.y:
+                        ship_to_append.length += ship.length
+                        ship_to_append.orientation = False
+                        self.ships.remove(ship)
+                        self.append_ship(ship_to_append)
+                        return
+                    elif ship_to_append.start_point.y == ship.start_point.y + ship.length:
+                        ship_to_append.start_point.x = ship.start_point.x
+                        ship_to_append.start_point.y = ship.start_point.y
+                        ship_to_append.length += ship.length
+                        ship_to_append.orientation = False
+                        self.ships.remove(ship)
+                        self.append_ship(ship_to_append)
+                        return
+                elif ship_to_append.start_point.y == ship.start_point.y:
+                    if ship_to_append.start_point.x + 1 == ship.start_point.x:
+                        ship_to_append.length += ship.length
+                        ship_to_append.orientation = True
+                        self.ships.remove(ship)
+                        self.append_ship(ship_to_append)
+                        return
+                    elif ship_to_append.start_point.x == ship.start_point.x + ship.length:
+                        ship_to_append.start_point.x = ship.start_point.x
+                        ship_to_append.start_point.y = ship.start_point.y
+                        ship_to_append.length += ship.length
+                        ship_to_append.orientation = True
+                        self.ships.remove(ship)
+                        self.append_ship(ship_to_append)
+                        return
+            self.ships.append(ship_to_append)
+        else:
+            raise TypeError("ship_to_append must be Ship class object")
+
     def print_board(self):
         rows_index = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
         print(f"       {'  '.join([str(i) for i in range(1, len(self.board[0])+1)])}\n")
@@ -240,7 +298,7 @@ class Board:
                 for ship in self.ships:
                     if dot in ship.dots():
                         self.board[dot.x][dot.y] = self.__hit_symbol
-                        ship.lives -= 1
+                        ship.lives = ship.lives - 1
                         if ship.lives == 0:
                             self.alive_ships -= 1
                             self.__last_turn = dot
@@ -264,6 +322,38 @@ class Board:
             if status in self.__enum_status:
                 self.board[dot.x][dot.y] = self.__enum_status[status]
                 self.__last_turn = Dot(dot.x, dot.y)
+                if status in (self.HIT_ST, self.KILL_ST):
+                    self.append_ship(Ship(1, Dot(dot.x, dot.y), False))
+                    if status == self.KILL_ST:
+                        for ship in self.ships:
+                            if dot in ship.dots():
+                                ship.lives = 0
+                                for redraw_dot in ship.dots():
+                                    self.board[redraw_dot.x][redraw_dot.y] = self.__kill_symbol
+                                break
+#                    for ship in self.ships:
+#                        if dot in ship.area():
+#                            if dot.x == ship.start_point.x:
+#                                if dot.y - ship.start_point.y < 0:
+#                                    ship.start_point.y -= 1
+#                                    ship.length += 1
+#                                    ship.orientation = True
+#                                    return
+#                                else:
+#                                    ship.length += 1
+#                                    ship.orientation = True
+#                                    return
+#                            elif dot.y == ship.start_point.y:
+#                                if dot.x - ship.start_point.x < 0:
+#                                    ship.start_point.x -= 1
+#                                    ship.length += 1
+#                                    ship.orientation = False
+#                                    return
+#                                else:
+#                                    ship.length += 1
+#                                    ship.orientation = False
+#                                    return
+#                    self.ships.append(Ship(1, Dot(dot.x, dot.y), False))
             else:
                 raise TypeError(f"status must be in {0}".format([i for i in self.__enum_status]))
         else:
@@ -283,6 +373,7 @@ class Player:
         self.player_board = Board(board_size)
         self.enemy_board = Board(board_size)
         self.player_board.hid = False
+        self.enemy_board.hid = False
 
     def ask(self):
         pass
