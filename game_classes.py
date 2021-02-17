@@ -106,6 +106,13 @@ class Ship:
 
 
 class Board:
+    SHIP_ST = 'ship'
+    MISS_ST = 'miss'
+    HIT_ST = 'hit'
+    KILL_ST = 'kill'
+    BLANK_ST = 'blank'
+    OUT_ST = 'out of board'
+
     def __init__(self, board_size=BOARD_SIZE):
         self.__ship_symbol = "\033[37m█\033[0m"
         self.__miss_symbol = "\033[34m●\033[0m"
@@ -114,6 +121,16 @@ class Board:
         self.__blank_symbol = " \033[0m"
         self.__last_turn_symbol = "\033[7m"
         self.__last_turn = None
+        self.__enum_symbol = {
+            self.__miss_symbol: self.MISS_ST,
+            self.__hit_symbol: self.HIT_ST,
+            self.__kill_symbol: self.KILL_ST,
+            }
+        self.__enum_status = {
+            self.MISS_ST: self.__miss_symbol,
+            self.HIT_ST: self.__hit_symbol,
+            self.KILL_ST: self.__kill_symbol,
+            }
         self.board = [[self.__blank_symbol] * board_size for _ in range(board_size)]
         self.ships = []
         self.hid = True
@@ -131,12 +148,38 @@ class Board:
     def hid_ships(self, value):
         self.hid = value
 
-    def get_alive_ships(self):
+    def get_alive_ships_count(self):
         return self.alive_ships
+
+    def get_last_turn(self):
+        return self.__last_turn
+
+    def get_symbols(self):
+        return {
+            self.__ship_symbol: "ship",
+            self.__miss_symbol: "miss",
+            self.__hit_symbol: "hit",
+            self.__kill_symbol: "kill",
+            self.__blank_symbol: "blank",
+            }
+
+    def get_ships_area(self):
+        area = []
+        for ship in self.ships:
+            area.append(ship.area())
+        return area
+
+    def get_free_dots(self):
+        dots = []
+        for x in range(0, self.board_size):
+            for y in range(0, self.board_size):
+                if (not (x, y) in self.get_ships_area()) and (self.board[x][y] == self.__blank_symbol):
+                    dots.append(Dot(x, y))
+        return dots
 
     def add_ship(self, ship):
         if isinstance(ship, Ship):
-            if all(map(self.out, ship.dots())):
+            if not any(map(self.out, ship.dots())):
                 for current_ship in self.ships:
                     for ship_dot in ship.dots():
                         if ship_dot in current_ship.area():
@@ -167,30 +210,33 @@ class Board:
                 item = Dot(*item)
             else:
                 raise TypeError("Item must be (x,y) tuple where x and y is integer or Dot class")
-        if self.out(item):
-            if self.hid or (self.board[item.x][item.y] in (self.__hit_symbol, self.__miss_symbol)):
+        if not self.out(item):
+            if self.board[item.x][item.y] != self.__blank_symbol:
                 if item == self.__last_turn:
                     return self.__last_turn_symbol+self.board[item.x][item.y]
                 return self.board[item.x][item.y]
             else:
-                for ship in self.ships:
-                    if item in ship.dots():
-                        return self.__ship_symbol
-                return self.__blank_symbol
+                if self.hid:
+                    return self.board[item.x][item.y]
+                else:
+                    for ship in self.ships:
+                        if item in ship.dots():
+                            return self.__ship_symbol
+                    return self.board[item.x][item.y]
         else:
             raise KeyError
 
     def out(self, dot):
         if isinstance(dot, Dot):
             if (0 <= dot.x < len(self.board[0])) and (0 <= dot.y < len(self.board)):
-                return True
-            return False
+                return False
+            return True
         else:
             raise TypeError("Dot must be Dot class object")
 
     def shot(self, dot):
         if isinstance(dot, Dot):
-            if self.out(dot):
+            if not self.out(dot):
                 for ship in self.ships:
                     if dot in ship.dots():
                         self.board[dot.x][dot.y] = self.__hit_symbol
@@ -200,18 +246,28 @@ class Board:
                             self.__last_turn = dot
                             for killed_dot in ship.dots():
                                 self.board[killed_dot.x][killed_dot.y] = self.__kill_symbol
-                            return 'kill'
+                            return self.KILL_ST
                         self.__last_turn = dot
-                        return 'hit'
+                        return self.HIT_ST
                 if self.board[dot.x][dot.y] != self.__blank_symbol:
                     raise DotIsOccupiedException
                 self.board[dot.x][dot.y] = self.__miss_symbol
-                self.__last_turn = dot
-                return 'miss'
+                self.__last_turn = Dot(dot.x, dot.y)
+                return self.MISS_ST
             else:
                 raise BoardOutException
         else:
             raise TypeError("Dot must be Dot class object")
+
+    def save_result(self, dot, status):
+        if isinstance(dot, Dot):
+            if status in self.__enum_status:
+                self.board[dot.x][dot.y] = self.__enum_status[status]
+                self.__last_turn = Dot(dot.x, dot.y)
+            else:
+                raise TypeError(f"status must be in {0}".format([i for i in self.__enum_status]))
+        else:
+            raise TypeError("dot must be Dot class object")
 
 
 class Player:
@@ -226,9 +282,13 @@ class Player:
     def __init__(self, board_size=BOARD_SIZE):
         self.player_board = Board(board_size)
         self.enemy_board = Board(board_size)
+        self.player_board.hid = False
 
     def ask(self):
-        return Dot(0, 0)
+        pass
+
+    def save_move(self, dot, status):
+        self.enemy_board.save_result(dot, status)
 
     def move(self, dot):
         if isinstance(dot, Dot):
@@ -256,16 +316,17 @@ class Player:
 
 
 class Ai(Player):
-    def __init__(self):
-        Player.__init__(self)
+    def __init__(self, board_size=BOARD_SIZE):
+        Player.__init__(self, board_size)
 
-    def ask(self, reason=""):
-        dot = Dot(randint(0, self.enemy_board.board_size-1), randint(0, self.enemy_board.board_size-1))
+    def ask(self):
+        dots = self.enemy_board.get_free_dots()
+        return dots[randint(0, len(dots)-1)]
 
 
 class User(Player):
-    def __init__(self):
-        Player.__init__(self)
+    def __init__(self, board_size=BOARD_SIZE):
+        Player.__init__(self, board_size)
         pass
 
     def ask(self, reason=""):
@@ -283,9 +344,9 @@ class User(Player):
 
 
 class Game:
-    def __init__(self):
-        self.user = User()
-        self.ai = Ai()
+    def __init__(self, board_size=BOARD_SIZE):
+        self.user = User(board_size)
+        self.ai = Ai(board_size)
         self.__turn_iter = self.__turn(1, 2)
         self.__current_player = next(self.__turn_iter)
 
