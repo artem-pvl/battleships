@@ -1,6 +1,12 @@
 from random import randint
 
 BOARD_SIZE = 6
+SHIP_ST = 'ship'
+MISS_ST = 'miss'
+HIT_ST = 'hit'
+KILL_ST = 'kill'
+BLANK_ST = 'blank'
+OUT_ST = 'out of board'
 
 
 class BoardOutException(Exception):
@@ -77,7 +83,11 @@ class Ship:
 
     @length.setter
     def length(self, ship_length):
+        print(self.__start_point.x, self.__start_point.y, "length chb", self.__length, "lives", self.__lives)
+        if ship_length < self.__lives:
+            self.__lives = ship_length
         self.__length = ship_length
+        print(self.__start_point.x, self.__start_point.y, "length ch", self.__length, "lives", self.__lives)
 
     @property
     def start_point(self):
@@ -101,10 +111,14 @@ class Ship:
 
     @lives.setter
     def lives(self, ship_lives):
+        print(self.__start_point.x, self.__start_point.y, "lives chb", self.__lives, "length", self.__length)
         if 0 <= ship_lives <= self.__length:
             self.__lives = ship_lives
+        elif ship_lives > self.__length:
+            self.__lives = self.__length
         else:
             raise ShipLivesException
+        print(self.__start_point.x, self.__start_point.y, "lives ch", self.__lives, "length", self.__length)
 
     def dots(self):
         if self.__orientation:
@@ -134,22 +148,15 @@ class Ship:
             dots.append(Dot(self.__start_point.x, self.__start_point.y+1))
         else:
             if self.__orientation:
-                dots.append(Dot(self.__start_point.x-1, self.__start_point.y))
-                dots.append(Dot(self.__start_point.x+1, self.__start_point.y))
-            else:
                 dots.append(Dot(self.__start_point.x, self.__start_point.y-1))
                 dots.append(Dot(self.__start_point.x, self.__start_point.y+1))
+            else:
+                dots.append(Dot(self.__start_point.x - 1, self.__start_point.y))
+                dots.append(Dot(self.__start_point.x + 1, self.__start_point.y))
         return dots
 
 
 class Board:
-    SHIP_ST = 'ship'
-    MISS_ST = 'miss'
-    HIT_ST = 'hit'
-    KILL_ST = 'kill'
-    BLANK_ST = 'blank'
-    OUT_ST = 'out of board'
-
     def __init__(self, board_size=BOARD_SIZE):
         self.__ship_symbol = "\033[37m█\033[0m"
         self.__miss_symbol = "\033[34m●\033[0m"
@@ -159,14 +166,14 @@ class Board:
         self.__last_turn_symbol = "\033[7m"
         self.__last_turn = None
         self.__enum_symbol = {
-            self.__miss_symbol: self.MISS_ST,
-            self.__hit_symbol: self.HIT_ST,
-            self.__kill_symbol: self.KILL_ST,
+            self.__miss_symbol: MISS_ST,
+            self.__hit_symbol: HIT_ST,
+            self.__kill_symbol: KILL_ST,
             }
         self.__enum_status = {
-            self.MISS_ST: self.__miss_symbol,
-            self.HIT_ST: self.__hit_symbol,
-            self.KILL_ST: self.__kill_symbol,
+            MISS_ST: self.__miss_symbol,
+            HIT_ST: self.__hit_symbol,
+            KILL_ST: self.__kill_symbol,
             }
         self.board = [[self.__blank_symbol] * board_size for _ in range(board_size)]
         self.ships = []
@@ -213,8 +220,9 @@ class Board:
         for ship in self.ships:
             if ship.lives > 0:
                 for edge in ship.get_edges():
-                    if self.board[edge.x][edge.y] == self.__blank_symbol:
-                        edges.append(edge)
+                    if not self.out(edge):
+                        if self.board[edge.x][edge.y] == self.__blank_symbol:
+                            edges.append(edge)
         return edges
 
     def get_free_dots(self):
@@ -245,22 +253,23 @@ class Board:
                 if ship_to_append.start_point.x == ship.start_point.x:
                     if ship_to_append.start_point.y+1 == ship.start_point.y:
                         ship_to_append.length += ship.length
-                        ship_to_append.orientation = False
+                        ship_to_append.lives += ship.lives
+                        ship_to_append.orientation = True
                         self.ships.remove(ship)
                         self.append_ship(ship_to_append)
                         return
                     elif ship_to_append.start_point.y == ship.start_point.y + ship.length:
-                        ship_to_append.start_point.x = ship.start_point.x
                         ship_to_append.start_point.y = ship.start_point.y
                         ship_to_append.length += ship.length
-                        ship_to_append.orientation = False
+                        ship_to_append.lives += ship.lives
+                        ship_to_append.orientation = True
                         self.ships.remove(ship)
                         self.append_ship(ship_to_append)
                         return
                 elif ship_to_append.start_point.y == ship.start_point.y:
                     if ship_to_append.start_point.x + 1 == ship.start_point.x:
                         ship_to_append.length += ship.length
-                        ship_to_append.orientation = True
+                        ship_to_append.orientation = False
                         self.ships.remove(ship)
                         self.append_ship(ship_to_append)
                         return
@@ -268,7 +277,7 @@ class Board:
                         ship_to_append.start_point.x = ship.start_point.x
                         ship_to_append.start_point.y = ship.start_point.y
                         ship_to_append.length += ship.length
-                        ship_to_append.orientation = True
+                        ship_to_append.orientation = False
                         self.ships.remove(ship)
                         self.append_ship(ship_to_append)
                         return
@@ -325,23 +334,24 @@ class Board:
     def shot(self, dot):
         if isinstance(dot, Dot):
             if not self.out(dot):
-                for ship in self.ships:
-                    if dot in ship.dots():
-                        self.board[dot.x][dot.y] = self.__hit_symbol
-                        ship.lives = ship.lives - 1
-                        if ship.lives == 0:
-                            self.alive_ships -= 1
-                            self.__last_turn = dot
-                            for killed_dot in ship.dots():
-                                self.board[killed_dot.x][killed_dot.y] = self.__kill_symbol
-                            return self.KILL_ST
-                        self.__last_turn = dot
-                        return self.HIT_ST
-                if self.board[dot.x][dot.y] != self.__blank_symbol:
+                if self.board[dot.x][dot.y] == self.__blank_symbol:
+                    for ship in self.ships:
+                        if dot in ship.dots():
+                            self.__last_turn = Dot(dot.x, dot.y)
+                            self.board[dot.x][dot.y] = self.__hit_symbol
+                            print("shoot ship lives bef", ship.lives)
+                            ship.lives = ship.lives - 1
+                            if ship.lives == 0:
+                                self.alive_ships -= 1
+                                for killed_dot in ship.dots():
+                                    self.board[killed_dot.x][killed_dot.y] = self.__kill_symbol
+                                return KILL_ST
+                            return HIT_ST
+                else:
                     raise DotIsOccupiedException
                 self.board[dot.x][dot.y] = self.__miss_symbol
                 self.__last_turn = Dot(dot.x, dot.y)
-                return self.MISS_ST
+                return MISS_ST
             else:
                 raise BoardOutException
         else:
@@ -352,9 +362,9 @@ class Board:
             if status in self.__enum_status:
                 self.board[dot.x][dot.y] = self.__enum_status[status]
                 self.__last_turn = Dot(dot.x, dot.y)
-                if status in (self.HIT_ST, self.KILL_ST):
+                if status in (HIT_ST, KILL_ST):
                     self.append_ship(Ship(1, Dot(dot.x, dot.y), False))
-                    if status == self.KILL_ST:
+                    if status == KILL_ST:
                         for ship in self.ships:
                             if dot in ship.dots():
                                 ship.lives = 0
@@ -380,7 +390,7 @@ class Player:
         self.player_board = Board(board_size)
         self.enemy_board = Board(board_size)
         self.player_board.hid = False
-        self.enemy_board.hid = False
+        self.enemy_board.hid = True
 
     def ask(self):
         pass
@@ -406,15 +416,15 @@ class Player:
 
     def print_board(self):
         print()
-        print('        '+'Моё поле'.center((self.player_board.board_size-1)*2+self.player_board.board_size, ' ') +
-              '        '+'Поле противника'.center((self.enemy_board.board_size-1)*2+self.enemy_board.board_size, ' '))
-        print('        '+'  '.join(str(i) for i in range(1, self.player_board.board_size+1)) +
-              '        '+'  '.join(str(i) for i in range(1, self.enemy_board.board_size+1)))
+        print('        '+'Моё поле'.center((self.player_board.board_size-1)*1+self.player_board.board_size, ' ') +
+              '        '+'Поле противника'.center((self.enemy_board.board_size-1)*1+self.enemy_board.board_size, ' '))
+        print('        '+' '.join(str(i) for i in range(1, self.player_board.board_size+1)) +
+              '        '+' '.join(str(i) for i in range(1, self.enemy_board.board_size+1)))
         for x in range(self.player_board.board_size):
             print('      '+self.CHARS[x]+' ' +
-                  '  '.join(self.player_board[x, y] for y in range(self.player_board.board_size)) +
+                  ' '.join(self.player_board[x, y] for y in range(self.player_board.board_size)) +
                   '      '+self.CHARS[x]+' ' +
-                  '  '.join(self.enemy_board[x, y] for y in range(self.enemy_board.board_size)))
+                  ' '.join(self.enemy_board[x, y] for y in range(self.enemy_board.board_size)))
 
     def add_ships(self, ships):
         pass
@@ -476,9 +486,7 @@ class User(Player):
                 turn = input("Введите точку в формате RC, где: R - буква строки, C - номер колонки: ").lower()
         return Dot(*dot)
 
-    def ask(self, reason=""):
-        if reason:
-            print(reason)
+    def ask(self):
         turn = input("Ваш ход: ").lower()
         return self.__check_input(turn)
 
@@ -523,14 +531,55 @@ class Game:
             yield a
             yield b
 
-    def random_board(self):
-        pass
-
     def greet(self):
         pass
 
     def loop(self):
-        pass
+        win = False
+        while not win:
+            if self.__current_player == 1:
+                current_player = self.user
+                enemy_player = self.ai
+            else:
+                current_player = self.ai
+                enemy_player = self.user
+
+            result = HIT_ST
+            while result in (HIT_ST, KILL_ST):
+                dot = current_player.ask()
+                print("ask", dot.x, dot.y)
+                result = enemy_player.move(dot)
+                current_player.save_move(dot, result)
+                self.user.print_board()
+                self.ai.print_board()
+            self.__current_player = next(self.__turn_iter)
 
     def start(self):
-        pass
+        ships_user = [
+            Ship(3, Dot(0, 0), True),
+            Ship(2, Dot(0, 0), True),
+            Ship(2, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True)
+        ]
+
+        ships_ai = [
+            Ship(3, Dot(0, 0), True),
+            Ship(2, Dot(0, 0), True),
+            Ship(2, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True),
+            Ship(1, Dot(0, 0), True)
+        ]
+
+        key = input("Хотите расставить корабли в ручную? (Д, Y - да): ")
+        if key.lower() in ("y", "д"):
+            self.user.add_ships(ships_user)
+        else:
+            self.user.add_ships_random(ships_user)
+            self.user.print_board()
+
+        self.ai.add_ships_random(ships_ai)
