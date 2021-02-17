@@ -104,7 +104,6 @@ class Ship:
         if 0 <= ship_lives <= self.__length:
             self.__lives = ship_lives
         else:
-            print(f"shl = {ship_lives}")
             raise ShipLivesException
 
     def dots(self):
@@ -231,9 +230,6 @@ class Board:
             if not any(map(self.out, ship.dots())):
                 for current_ship in self.ships:
                     for ship_dot in ship.dots():
-                        csa = current_ship.area()
-                        print([(i.x, i.y) for i in csa])
-                        print(ship_dot.x, ship_dot.y)
                         if ship_dot in current_ship.area():
                             raise ShipWrongPosition
                 self.ships.append(ship)
@@ -279,6 +275,9 @@ class Board:
             self.ships.append(ship_to_append)
         else:
             raise TypeError("ship_to_append must be Ship class object")
+
+    def erase_ships(self):
+        self.ships = []
 
     def print_board(self):
         rows_index = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
@@ -420,6 +419,30 @@ class Player:
     def add_ships(self, ships):
         pass
 
+    def add_ships_random(self, ships):
+        for ship in ships:
+            next_ship = False
+            orientation = True if randint(0, 1) == 0 else False
+            free_dots = self.player_board.get_free_dots()
+            while not next_ship:
+                if not free_dots:
+                    self.player_board.erase_ships()
+                    return self.add_ships_random(ships)
+                ship.start_point = free_dots[randint(0, len(free_dots)-1)]
+                ship.orientation = orientation
+                try:
+                    self.player_board.add_ship(ship)
+                except (BoardOutException, ShipWrongPosition):
+                    try:
+                        ship.orientation = ~ship.orientation
+                        self.player_board.add_ship(ship)
+                    except (BoardOutException, ShipWrongPosition):
+                        free_dots.remove(ship.start_point)
+                    else:
+                        next_ship = True
+                else:
+                    next_ship = True
+
 
 class Ai(Player):
     def __init__(self, board_size=BOARD_SIZE):
@@ -469,9 +492,10 @@ class User(Player):
                 start_dot = self.__check_input(text)
                 ship.start_point = start_dot
                 text = ""
-                while text not in ("h", "v", "г", "в"):
-                    text = input(f"Введите ориентацию корабля (h или г - горизонтально, v или в - вертикально): ")
-                ship.orientation = True if text in ("h", "г") else False
+                if ship.length > 1:
+                    while text not in ("h", "v", "г", "в"):
+                        text = input(f"Введите ориентацию корабля (h или г - горизонтально, v или в - вертикально): ")
+                    ship.orientation = True if text in ("h", "г") else False
                 try:
                     self.player_board.add_ship(ship)
                 except BoardOutException:
