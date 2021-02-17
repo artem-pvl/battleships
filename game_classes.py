@@ -125,6 +125,22 @@ class Ship:
                 area.append(Dot(i, j))
         return area
 
+    def get_edges(self):
+        dots = []
+        if self.__length == 1:
+            dots.append(Dot(self.__start_point.x-1, self.__start_point.y))
+            dots.append(Dot(self.__start_point.x+1, self.__start_point.y))
+            dots.append(Dot(self.__start_point.x, self.__start_point.y-1))
+            dots.append(Dot(self.__start_point.x, self.__start_point.y+1))
+        else:
+            if self.__orientation:
+                dots.append(Dot(self.__start_point.x-1, self.__start_point.y))
+                dots.append(Dot(self.__start_point.x+1, self.__start_point.y))
+            else:
+                dots.append(Dot(self.__start_point.x, self.__start_point.y-1))
+                dots.append(Dot(self.__start_point.x, self.__start_point.y+1))
+        return dots
+
 
 class Board:
     SHIP_ST = 'ship'
@@ -184,17 +200,28 @@ class Board:
             self.__blank_symbol: "blank",
             }
 
-    def get_ships_area(self):
+    def get_dead_ships_area(self):
         area = []
         for ship in self.ships:
-            area.append(ship.area())
+            if ship.lives == 0:
+                for dot in ship.area():
+                    area.append(dot)
         return area
+
+    def get_ships_edges(self):
+        edges = []
+        for ship in self.ships:
+            if ship.lives > 0:
+                for edge in ship.get_edges():
+                    if self.board[edge.x][edge.y] == self.__blank_symbol:
+                        edges.append(edge)
+        return edges
 
     def get_free_dots(self):
         dots = []
         for x in range(0, self.board_size):
             for y in range(0, self.board_size):
-                if (not (x, y) in self.get_ships_area()) and (self.board[x][y] == self.__blank_symbol):
+                if ((x, y) not in self.get_dead_ships_area()) and (self.board[x][y] == self.__blank_symbol):
                     dots.append(Dot(x, y))
         return dots
 
@@ -331,29 +358,6 @@ class Board:
                                 for redraw_dot in ship.dots():
                                     self.board[redraw_dot.x][redraw_dot.y] = self.__kill_symbol
                                 break
-#                    for ship in self.ships:
-#                        if dot in ship.area():
-#                            if dot.x == ship.start_point.x:
-#                                if dot.y - ship.start_point.y < 0:
-#                                    ship.start_point.y -= 1
-#                                    ship.length += 1
-#                                    ship.orientation = True
-#                                    return
-#                                else:
-#                                    ship.length += 1
-#                                    ship.orientation = True
-#                                    return
-#                            elif dot.y == ship.start_point.y:
-#                                if dot.x - ship.start_point.x < 0:
-#                                    ship.start_point.x -= 1
-#                                    ship.length += 1
-#                                    ship.orientation = False
-#                                    return
-#                                else:
-#                                    ship.length += 1
-#                                    ship.orientation = False
-#                                    return
-#                    self.ships.append(Ship(1, Dot(dot.x, dot.y), False))
             else:
                 raise TypeError(f"status must be in {0}".format([i for i in self.__enum_status]))
         else:
@@ -411,8 +415,16 @@ class Ai(Player):
         Player.__init__(self, board_size)
 
     def ask(self):
-        dots = self.enemy_board.get_free_dots()
-        return dots[randint(0, len(dots)-1)]
+        free_dots = self.enemy_board.get_ships_edges()
+        print("get_ship_edges", [(dot.x, dot.y) for dot in free_dots])
+        if free_dots:
+            return free_dots[randint(0, len(free_dots)-1)]
+        else:
+            free_dots = self.enemy_board.get_free_dots()
+            print("get_free_dots", [(dot.x, dot.y) for dot in free_dots])
+            if free_dots:
+                return free_dots[randint(0, len(free_dots)-1)]
+        return None
 
 
 class User(Player):
