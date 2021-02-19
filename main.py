@@ -11,4 +11,4 @@ if __name__ == '__main__':
         if key.lower() not in ("y", "д"):
             loop_game = False
 
-    print("Удачи!")
+    print("Игра завершена.\nУдачи!")
