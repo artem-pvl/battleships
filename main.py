@@ -1,14 +1,14 @@
-from game_classes import Dot, Ship
+from game_classes import Game
 
 if __name__ == '__main__':
-    d1 = Dot(5, 1)
-    d2 = Dot(1, 1)
-    print(d1 == (1, 1))
-    print(d1 == [1, 1])
-    print(d1 == d2)
 
-    ship1 = Ship(3, d1, False)
-    ship_dots = ship1.dots()
-    print(ship_dots[0].x, ship_dots[0].y)
-    print(ship_dots[1].x, ship_dots[1].y)
-    print(ship_dots[2].x, ship_dots[2].y)
+    loop_game = True
+    while loop_game:
+        game = Game()
+        game.start()
+
+        key = input("Хотите ещё одну игру? (Д, Y - да): ")
+        if key.lower() not in ("y", "д"):
+            loop_game = False
+
+    print("Удачи!")

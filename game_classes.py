@@ -148,10 +148,10 @@ class Ship:
         else:
             if self.__orientation:
                 dots.append(Dot(self.__start_point.x, self.__start_point.y-1))
-                dots.append(Dot(self.__start_point.x, self.__start_point.y+1))
+                dots.append(Dot(self.__start_point.x, self.__start_point.y+self.__length))
             else:
-                dots.append(Dot(self.__start_point.x - 1, self.__start_point.y))
-                dots.append(Dot(self.__start_point.x + 1, self.__start_point.y))
+                dots.append(Dot(self.__start_point.x-1, self.__start_point.y))
+                dots.append(Dot(self.__start_point.x+self.__length, self.__start_point.y))
         return dots
 
 
@@ -247,6 +247,19 @@ class Board:
         else:
             raise TypeError("Ship to add must be the Ship class object")
 
+    def try_ship(self, ship):
+        if isinstance(ship, Ship):
+            if not any(map(self.out, ship.dots())):
+                for current_ship in self.ships:
+                    for ship_dot in ship.dots():
+                        if ship_dot in current_ship.area():
+                            return False
+            else:
+                return False
+        else:
+            raise TypeError("Ship to add must be the Ship class object")
+        return True
+
     def append_ship(self, ship_to_append):
         if isinstance(ship_to_append, Ship):
             for ship in self.ships:
@@ -297,6 +310,7 @@ class Board:
 
     def erase_ships(self):
         self.ships = []
+        self.alive_ships = 0
 
     def __getitem__(self, item):
         if not isinstance(item, Dot):
@@ -368,8 +382,7 @@ class Board:
                                     self.board[redraw_dot.x][redraw_dot.y] = self.__kill_symbol
                                 break
             else:
-                print(status)
-                raise TypeError(f"status must be in {0}".format([i for i in self.__enum_status]))
+                raise TypeError("status must be in Board.__enum_status")
         else:
             raise TypeError("dot must be Dot class object")
 
@@ -414,15 +427,18 @@ class Player:
 
     def print_board(self):
         print()
-        print('        '+'Моё поле'.center((self.player_board.board_size-1)*1+self.player_board.board_size, ' ') +
-              '        '+'Поле противника'.center((self.enemy_board.board_size-1)*1+self.enemy_board.board_size, ' '))
+        print('      ' + 'Моё поле'.center((self.player_board.board_size*2-1)+4, ' ') +
+              '     ' +
+              'Поле противника'.center((self.enemy_board.board_size*2-1)+4, ' '))
         print('        '+' '.join(str(i) for i in range(1, self.player_board.board_size+1)) +
-              '        '+' '.join(str(i) for i in range(1, self.enemy_board.board_size+1)))
+              '         '+' '.join(str(i) for i in range(1, self.enemy_board.board_size+1)))
         for x in range(self.player_board.board_size):
             print('      '+self.CHARS[x]+' ' +
-                  ' '.join(self.player_board[x, y] for y in range(self.player_board.board_size)) +
-                  '      '+self.CHARS[x]+' ' +
-                  ' '.join(self.enemy_board[x, y] for y in range(self.enemy_board.board_size)))
+                  ' '.join(self.player_board[x, y] for y in range(self.player_board.board_size)) + ' ' +
+                  self.CHARS[x]+'     '+self.CHARS[x]+' ' +
+                  ' '.join(self.enemy_board[x, y] for y in range(self.enemy_board.board_size))+' '+self.CHARS[x])
+        print('        '+' '.join(str(i) for i in range(1, self.player_board.board_size+1)) +
+              '         '+' '.join(str(i) for i in range(1, self.enemy_board.board_size+1)))
 
     def add_ships(self, ships):
         pass
@@ -487,11 +503,28 @@ class User(Player):
         return self.__check_input(turn)
 
     def add_ships(self, ships):
+        self.print_board()
         for ship in ships:
             next_ship = False
-            self.print_board()
             print()
             while not next_ship:
+                free_dots = self.player_board.get_free_dots()
+                while free_dots:
+                    ship.start_point = free_dots[randint(0, len(free_dots) - 1)]
+                    if not self.player_board.try_ship(ship):
+                        ship.orientation = ~ship.orientation
+                        if not self.player_board.try_ship(ship):
+                            free_dots.remove(ship.start_point)
+                        else:
+                            break
+                    else:
+                        break
+                    if not free_dots:
+                        print("Похоже нет места для размещения корабля, попробуйте расставить корабли ещё раз!")
+                        self.player_board.erase_ships()
+                        return self.add_ships(ships)
+
+                print(f"Осталось разместить кораблей: {len(ships) - ships.index(ship)}")
                 text = input(f"Введите начальную точку корабля размером {ship.length} палубы: ")
                 start_dot = self.__check_input(text)
                 ship.start_point = start_dot
@@ -573,7 +606,8 @@ class Game:
                         print("Сделайте ещё выстрел.")
                     elif result == KILL_ST:
                         print("Есть попадание, корабль противника \033[31mпотоплен\033[0m!")
-                        print(f"У противника осталось {enemy_player.player_board.get_alive_ships_count()} кораблей.")
+                        print(f"У противника осталось кораблей: "
+                              f"\033[32m{enemy_player.player_board.get_alive_ships_count()}\033[0m")
                         print("Сделайте ещё выстрел.")
                     elif result == MISS_ST:
                         print("\033[34mМимо\033[0m!")
@@ -586,7 +620,8 @@ class Game:
                         print("Компьютер ходит ещё раз.")
                     elif result == KILL_ST:
                         print("Есть попадание, ваш корабль \033[31mпотоплен\033[0m!")
-                        print(f"У вас осталось {enemy_player.player_board.get_alive_ships_count()} кораблей.")
+                        print(f"У вас осталось кораблей: "
+                              f"\033[32m{enemy_player.player_board.get_alive_ships_count()}\033[0m")
                         print("Компьютер ходит ещё раз.")
                     elif result == MISS_ST:
                         print("Компьютер \033[34mпромазал\033[0m!")
@@ -596,6 +631,8 @@ class Game:
             self.__current_player = next(self.__turn_iter)
 
     def start(self):
+        self.greet()
+
         ships_user = [
             Ship(3, Dot(0, 0), True),
             Ship(2, Dot(0, 0), True),
@@ -615,7 +652,6 @@ class Game:
             Ship(1, Dot(0, 0), True),
             Ship(1, Dot(0, 0), True)
         ]
-
         key = input("Хотите расставить корабли вручную? (Д, Y - да): ")
         if key.lower() in ("y", "д"):
             self.user.add_ships(ships_user)
@@ -624,3 +660,5 @@ class Game:
             self.user.print_board()
 
         self.ai.add_ships_random(ships_ai)
+
+        self.loop()
