@@ -157,10 +157,10 @@ class Ship:
 
 class Board:
     def __init__(self, board_size=BOARD_SIZE):
-        self.__ship_symbol = "\033[37m█\033[0m"
-        self.__miss_symbol = "\033[34m●\033[0m"
-        self.__hit_symbol = "\033[33m\033[1m╳\033[0m"
-        self.__kill_symbol = "\033[41m\033[30m\033[1m╳\033[0m"
+        self.__ship_symbol = "\033[37mH\033[0m"
+        self.__miss_symbol = "\033[34m-\033[0m"
+        self.__hit_symbol = "\033[33m\033[1mX\033[0m"
+        self.__kill_symbol = "\033[41m\033[30m\033[1mX\033[0m"
         self.__blank_symbol = " \033[0m"
         self.__last_turn_symbol = "\033[7m"
         self.__last_turn = None
@@ -565,9 +565,11 @@ class Game:
         print("\nКонсольная игра 'Морской бой'\n")
         print("Обозначения игрового поля:")
         print(f"  {symbols[MISS_ST]}\033[0m - промах")
+        print(f"  {symbols[SHIP_ST]}\033[0m - корабль")
         print(f"  {symbols[HIT_ST]}\033[0m - подбитый корабль")
         print(f"  {symbols[KILL_ST]}\033[0m - потопленый корабль")
-        print(f"  {symbols[LAST_SYM_ST]}{symbols[MISS_ST]} {symbols[HIT_ST]} {symbols[KILL_ST]}"
+        print(f"  {symbols[LAST_SYM_ST]}{symbols[MISS_ST]} {symbols[LAST_SYM_ST]}{symbols[HIT_ST]} "
+              f"{symbols[LAST_SYM_ST]}{symbols[KILL_ST]}"
               f"\033[0m - обозначения последнего сделанного хода (промах, подбитый, потопленный)\n")
 
     def loop(self):
